@@ -37,11 +37,13 @@ jobs:
                   brew install xcodegen zstd glslang
                   brew install --cask dotnet-sdk
 
-            - name: Python packages (per README)
+            - name: Python packages (per README, in a virtualenv)
               id: pip
               continue-on-error: true
               run: |
-                  python3 -m pip install lz4 capstone fonttools nsz "backports.zstd; python_version < '3.14'"
+                  python3 -m venv ~/nxnative-venv
+                  ~/nxnative-venv/bin/pip install lz4 capstone fonttools nsz "backports.zstd; python_version < '3.14'"
+                  ~/nxnative-venv/bin/python -c "import lz4, capstone, fontTools, nsz; print('venv imports OK')"
 
             - name: Setup status, disk and memory after toolchain
               if: always()
@@ -60,4 +62,5 @@ jobs:
                   echo '=== WHAT USED THE SPACE ==='
                   du -sh ~/Library/Developer 2>/dev/null || true
                   du -sh /opt/homebrew 2>/dev/null || true
+                  du -sh ~/nxnative-venv 2>/dev/null || true
                   du -sh ./nxnative 2>/dev/null || true
