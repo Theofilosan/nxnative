@@ -1,0 +1,63 @@
+name: Runner capacity probe
+
+on:
+    workflow_dispatch:
+
+jobs:
+    probe:
+        name: Measure disk and memory
+        runs-on: xcode-27
+        steps:
+            - name: Hardware and OS
+              run: |
+                  sw_vers
+                  sysctl hw.model hw.memsize hw.ncpu
+                  xcodebuild -version
+
+            - name: Baseline disk and memory
+              run: |
+                  df -h
+                  df -i
+                  echo '--- memory ---'
+                  top -l 1 -n 0 | grep PhysMem
+                  vm_stat | head -12
+
+            - name: Metal toolchain (per project README)
+              id: metal
+              continue-on-error: true
+              run: |
+                  xcodebuild -downloadComponent MetalToolchain
+                  xcrun metal --version
+
+            - name: Project checkout and tools (per README)
+              id: tools
+              continue-on-error: true
+              run: |
+                  git clone --depth 1 https://github.com/seedds/nxnative.git
+                  brew install xcodegen zstd glslang
+                  brew install --cask dotnet-sdk
+
+            - name: Python packages (per README)
+              id: pip
+              continue-on-error: true
+              run: |
+                  python3 -m pip install lz4 capstone fonttools nsz "backports.zstd; python_version < '3.14'"
+
+            - name: Setup status, disk and memory after toolchain
+              if: always()
+              run: |
+                  echo '=== SETUP STATUS ==='
+                  echo "metal toolchain: ${{ steps.metal.outcome }}"
+                  echo "checkout and brew tools: ${{ steps.tools.outcome }}"
+                  echo "python packages: ${{ steps.pip.outcome }}"
+                  echo "If any line above says failure, the measurements below"
+                  echo "describe an INCOMPLETE toolchain, not the full setup."
+                  echo '=== DISK ==='
+                  df -h
+                  df -i
+                  echo '=== MEMORY ==='
+                  top -l 1 -n 0 | grep PhysMem
+                  echo '=== WHAT USED THE SPACE ==='
+                  du -sh ~/Library/Developer 2>/dev/null || true
+                  du -sh /opt/homebrew 2>/dev/null || true
+                  du -sh ./nxnative 2>/dev/null || true
